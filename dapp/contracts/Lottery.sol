@@ -5,78 +5,106 @@ import "hardhat/console.sol";
 contract Lottery {
   //list of players registered in lotery
   address payable[] public players;
-  address public admin;
-  /**
-    * @dev makes 'admin' of the account at point of deployement
-    */ 
+  address payable public admin;
+  uint public maxPlayers = 2;
+  mapping (address => bool) public wallets;
+
   constructor() {
-    admin = msg.sender;
+    admin = payable(msg.sender);
     //automatically adds admin on deployment
-    players.push(payable(admin));
+    // players.push(payable(admin));
   }
   
+  function setWallet(address _wallet) public{
+      wallets[_wallet]=true;
+  }
+
+  function contains(address _wallet) public view returns (bool){
+    return wallets[_wallet];
+  }
+
   modifier onlyOwner() {
     require(admin == msg.sender, "You are not the owner");
     _;
   }
-    
-    
-  /**
-    * @dev requires the deposit of 0.1 ether and if met pushes on address on list
-    */ 
-  receive() external payable {
-      //require that the transaction value to the contract is 0.1 ether
-    require(msg.value == 0.000001 ether , "Must send infinite ether amount");
-    
-    //makes sure that the admin can not participate in lottery
-    require(msg.sender != admin);
-    
-    // pushing the account conducting the transaction onto the players array as a payable adress
-    players.push(payable(msg.sender));
+
+  function getPlayers() public view returns(address payable[] memory) {
+    return players;
+  }
+
+  function getPlayersNumber() public view returns(uint) {
+    return players.length;
+  }
+
+  function getOwner() public view returns(address) {
+    return admin;
   }
     
-  /**
-    * @dev gets the contracts balance
-    * @return contract balance
-  */ 
-  function getBalance() public view onlyOwner returns(uint){
+  receive() external payable {
+    // require(msg.value == 0.000001 ether , "Must send infinite ether amount");
+    
+    // require(msg.sender != admin, "You cant participate");
+    
+    require(wallets[msg.sender] != true, "You joined this lottery");
+    
+
+    setWallet(msg.sender);
+    // pushing the account conducting the transaction onto the players array as a payable adress
+    players.push(payable(msg.sender));
+
+    // if (players.length == maxPlayers) {
+    //   pickWinner();
+    //   resetLottery();
+    // }
+  }
+    
+  function getBalance() public view returns(uint){
       // returns the contract balance 
       return address(this).balance;
   }
     
-  /**
-    * @dev generates random int *WARNING* -> Not safe for public use, vulnerbility detected
-    * @return random uint
-    */ 
+
   function random() internal view returns(uint){
-    return uint(keccak256(abi.encodePacked(block.difficulty, block.timestamp, players.length)));
+    return uint(keccak256(abi.encodePacked(block.difficulty, block.timestamp, players[players.length-1])));
   }
-    
-    /** 
-     * @dev picks a winner from the lottery, and grants winner the balance of contract
-     */ 
-  function pickWinner() public onlyOwner {
+
+  function pickWinner() public payable{
     //makes sure that we have enough players in the lottery  
-    require(players.length >= 2 , "Not enough players in the lottery");
+    // require(players.length >= maxPlayers , "Not enough players in the lottery");
     
-    address payable winner;
+    address payable winner1;
+    address payable winner2;
     //selects the winner with random number
-    winner = players[random() % players.length];
+    uint winnerIndex1 = random() % players.length;
+    uint winnerIndex2 = winnerIndex1;
+    // uint winnerIndex1 = 0;
+    // uint winnerIndex2 = 1;
+    while (winnerIndex1 == winnerIndex2)
+      winnerIndex2 = random() % players.length;
+    winner1 = players[winnerIndex1];
+    winner2 = players[winnerIndex2];
     //transfers balance to winner
-    winner.transfer( (getBalance() * 90) / 100); //gets only 90% of funds in contract
-    payable(admin).transfer( (getBalance() * 10) / 100); //gets remaining amount AKA 10% -> must make admin a payable account
-    
-    
+    // winner1.transfer( (getBalance() * 70) / 100); 
+    // winner2.transfer( (getBalance() * 25) / 100); 
+    // payable(admin).transfer( (getBalance() * 5) / 100);
+    (bool success, ) = winner1.call{value: (getBalance() * 70) / 100}("");
+        require(success, "Failed to send Ether");
+    (bool success1, ) = winner2.call{value: (getBalance() * 25) / 100}("");
+          require(success1, "Failed to send Ether");
+    (bool success2, ) = admin.call{value: (getBalance() * 5) / 100}("");
+          require(success2, "Failed to send Ether");
     //resets the plays array once someone is picked
-    resetLottery(); 
-    
+    resetLottery();
   }
   
   /**
     * @dev resets the lottery
   */ 
   function resetLottery() internal {
-      players = new address payable[](0);
+    for (uint i=0; i<players.length; i++){
+      wallets[players[i]] = false;
+    }
+    players = new address payable[](0);
   }
 
 }

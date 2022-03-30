@@ -25,12 +25,9 @@ module.exports = {
   networks: {
     rinkeby: {
       url: `https://rinkeby.infura.io/v3/e008e2a8432049789e7a85d1155932b4`,
-      accounts: {
-        mnemonic:
-          "spring retire until can turn choice ankle close lamp holiday outdoor wise",
-        initialIndex: 0,
-        path: "m/44'/60'/0'/0",
-      },
+      accounts: [
+        `43fea9dcf0621bb5a5d28065d4b9d5a0a2620a994b5c465ca4d59c1287c6f0dd`,
+      ],
     },
   },
 };
